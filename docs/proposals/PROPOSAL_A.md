@@ -1,9 +1,16 @@
+###### tags: `oras`
+
 # Proposal A
 
 Add a new manifest, that provides a superset of capabilities of the image manifest, with a reduced set of constraints enabling the container runtime image artifact, and new artifact types that include reference types.
 
-## Description
+The medications include:
 
+- [New artifact manifest](#artifact-manifest)
+- [Descriptor (OPTIONAL) additional property](#descriptor-properties)
+- [Distribution - Referrers API](#registry-http-api)
+
+## Artifact Manifest
 
 The `artifact.manifest` provides an optional collection of `blobs`, an optional `subject` reference to the manifest of another artifact and an `artifactType` to differentiate types of artifacts (such as signatures, sboms and security scan results).
 
@@ -11,18 +18,14 @@ The `artifact.manifest` provides an optional collection of `blobs`, an optional 
 
 | Description                                 | Link                        |
 | ------------------------------------------- | --------------------------- |
-| GitHub issue where this was first proposed  | [OCI Artifact Manifest - with weak reference support #27](https://github.com/opencontainers/artifacts/pull/27) |
-| GitHub issue where current implementation evolved from  | [OCI Artifact Manifest, Phase 1-Reference Types #29](https://github.com/opencontainers/artifacts/pull/29) |
-| Current ORAS Artifact-spec - Manifest  |  [View](https://github.com/oras-project/artifacts-spec/blob/main/artifact-manifest.md) | 
-| Current ORAS Artifact-spec - `/referrers` api  |  [View](https://github.com/oras-project/artifacts-spec/blob/main/manifest-referrers-api.md) | 
-| CNCF Distribution Implementation | [oras-project/distribution](https://github.com/oras-project/distribution/tree/ext_oras) |
-| ORAS Client to push/discover/pull reference types | [oras-project/oras](https://github.com/oras-project/oras/tree/artifacts) |
-| Azure Docs: Push, pull, discover supply chain artifacts | [View](https://aka.ms/acr/oras-artifacts) |
+| GitHub issue where this was first proposed:  | [OCI Artifact Manifest - with weak reference support #27](https://github.com/opencontainers/artifacts/pull/27)<br>[OCI Artifact Manifest, Phase 1-Reference Types #29](https://github.com/opencontainers/artifacts/pull/29) |
+| Current ORAS Specifications:   |  [Manifest](https://github.com/oras-project/artifacts-spec/blob/main/artifact-manifest.md) and [Referrers API](https://github.com/oras-project/artifacts-spec/blob/main/manifest-referrers-api.md) | 
+| Implementations | Registry: [CNCF DIstribution (fork for WIP)](https://github.com/oras-project/distribution/tree/ext_reftype)<br>Registry: [ZOT Project (merged)](https://github.com/project-zot/zot/issues/264)<br>Registry client: [oras-project/oras/tree/artifacts](https://github.com/oras-project/oras/tree/artifacts)<br>Azure Docs: [Push, pull, discover supply chain artifacts](https://aka.ms/acr/oras-artifacts) |
 
-## Modifications
+### Modifications 
 
-The ORAS Artifact manifest is similar to the [OCI image manifest][oci-image-manifest-spec], but removes constraints defined on the image-manifest such as a required `config` object and required & ordinal `layers`.
-It then adds a `subject` property supporting a graph of independent, but linked artifacts.
+The Artifact manifest is similar to the [OCI image manifest][oci-image-manifest-spec], but removes constraints defined on the image-manifest such as a required `config` object and required & ordinal `layers`.
+It adds a `subject` property supporting a graph of independently linked artifacts.
 The addition of a new manifest does not change, nor impact the `image.manifest`.
 It provides a means to define a wide range of artifacts, including a chain of related artifacts enabling SBoMs, signatures and metadata that can be related to an `image.manifest`, `image.index` or another `artifact.manifest`.
 By defining a new manifest, registries and clients opt-into new capabilities, without breaking existing registry and client behavior or setting expectations for scenarios to function when the client and/or registry may not yet implement new capabilities
@@ -54,13 +57,13 @@ By defining a new manifest, registries and clients opt-into new capabilities, wi
 
 - **`mediaType`** *string*
 
-  This field contains the `mediaType` of this document, differentiating from [image-manifest][oci-image-manifest-spec] and [image-index][oci-image-index]. The `mediaType` for this manifest type MUST be `application/vnd.cncf.oras.artifact.manifest.v1+json`, where the version WILL change to reflect newer versions.
+  This field contains the `mediaType` of this document, differentiating from [image-manifest][oci-image-manifest-spec] and [image-index][oci-image-index]. The `mediaType` for this manifest type MUST be `application/vnd.oci.artifact.manifest.v1+json`, where the version WILL change to reflect newer versions.
 
 - **`artifactType`** *string*
 
   The REQUIRED `artifactType` is a unique value, as registered with [iana.org][registering-iana].
   The `artifactType` values are equivalent to the values used in the `manifest.config.mediaType` in [OCI Artifacts][oci-artifacts].
-  Examples include `sbom/example`, `application/vnd.cncf.notary.v2`.
+  Examples include `sbom/example`, `ice-cream/example`.
   For details on creating a unique `artifactType`, see [OCI Artifact Authors Guidance][oci-artifact-authors]
 
 - **`blobs`** *array of objects*
@@ -68,7 +71,6 @@ By defining a new manifest, registries and clients opt-into new capabilities, wi
   An OPTIONAL collection of 0 or more blobs. The blobs array is analogous to [oci.image.manifest layers][oci-image-manifest-spec-layers], however unlike [image-manifest][oci-image-manifest-spec], the ordering of blobs is specific to the artifact type. Some artifacts may choose an overlay of files, while other artifact types may store independent collections of files.
     - Each item in the array MUST be an [artifact descriptor][descriptor], and MUST NOT refer to another `manifest` providing dependency closure.
     - The max number of blobs is not defined, but MAY be limited by [distribution-spec][oci-distribution-spec] implementations.
-    - An encountered `[descriptors].descriptor.mediaType` that is unknown to the implementation MUST be persisted as a blob.
 
 - **`subject`** *descriptor*
 
@@ -82,8 +84,17 @@ By defining a new manifest, registries and clients opt-into new capabilities, wi
     This map MAY contain some or all of the pre-defined keys listed below.
 
     **Pre-Defined Annotation Keys:**
-    This defines a set of keys that have been pre-defined for use by authors of ORAS artifacts.
-    - `org.cncf.oras.artifact.created` date and time on which the artifact was created (string, date-time as defined by [RFC 3339][rfc-3339])
+    This defines a set of keys that have been pre-defined for use by authors of the artifact.
+    - `org.oci.artifact.created` date and time on which the artifact was created (string, date-time as defined by [RFC 3339][rfc-3339])
+
+### Descriptor Properties
+
+Registries and clients work with descriptors as the means to establish discovery and links. To support hashing of different types, enabling filtering, the `artifactType` property is added as an optional property to the descriptor: 
+
+- **`artifactType`** *string*
+
+  This OPTIONAL property defines the type or Artifact, differentiating artifacts that use the `application/vnd.oci.artifact.manifest`.
+  When the descriptor is used for blobs, this property MUST be empty.
 
 ## Registry HTTP API
 
@@ -97,7 +108,7 @@ Reference artifact requests are scoped to a repository, ensuring access rights f
 GET /v2/{repository}/_oci/ext/discover
 ```
 
-The response SHOULD contain an extension with the name of `cncf.oras.referrers`
+The response SHOULD contain an extension with the name of `org.oci.referrers`
 and the `url` path where the referrers can be requested.
 
 ```http
@@ -108,9 +119,9 @@ Content-Type: application/json
 {
     "extensions": [
         {
-            "name": "cncf.oras.referrers",
-            "description": "ORAS referrers listing API",
-            "url": "_oras/artifacts/referrers"
+            "name": "org.oci.referrers",
+            "description": "Reference Type listing API",
+            "url": "_reftype/artifacts/referrers"
         }
     ]
 }
@@ -119,18 +130,18 @@ Content-Type: application/json
 ### API Path
 
 The `referrers` api are provided on the [distribution-spec][oci-distribution-spec] paths as described below.
-Pathing of the referrers api provides consistent namespace/repository paths, enabling registry operators to implement consistent auth access, using existing tokens for content.
+The path of the referrers api provides consistent namespace/repository paths, enabling registry operators to implement consistent auth access, using existing tokens for content.
 
 **template:**
 
 ```rest
-GET /v2/{repository}/_oras/artifacts/referrers?digest={digest}
+GET /v2/{repository}/_reftype/artifacts/referrers?digest={digest}
 ```
 
 **expanded example:**
 
 ```rest
-GET /v2/net-monitor/_oras/artifacts/referrers?digest=sha256:3c3a4604a545cdc127456d94e421cd355bca5b528f4a9c1905b15da2eb4a4c6b
+GET /v2/net-monitor/_reftype/artifacts/referrers?digest=sha256:3c3a4604a545cdc127456d94e421cd355bca5b528f4a9c1905b15da2eb4a4c6b
 ```
 
 ### Artifact Referrers API results
@@ -144,7 +155,6 @@ For cases where multiple artifacts are returned to the client, it may be necessa
 Maintainers of the standards utilizing references SHOULD define standard sets of annotations that will allow clients to determine whether or not each artifact needs to be downloaded in full.
 
 While this will cause additional round trips, manifests are typically small in comparison to the full pull time for a manifest and its blobs or layers.
-In future versioned releases, responses MAY be extended to include a `data` field representing the `base64` encoded manifest blob.
 
 This paged result MUST return the following elements:
 
@@ -160,13 +170,13 @@ if there are no artifacts referencing the given manifest.
   "referrers": [
     {
       "digest": "sha256:3c3a4604a545cdc127456d94e421cd355bca5b528f4a9c1905b15da2eb4a4c6b",
-      "mediaType": "application/vnd.cncf.oras.artifact.manifest.v1+json",
+      "mediaType": "application/vnd.oci.reftype.artifact.manifest.v1+json",
       "artifactType": "signature/example",
       "size": 312
     },
     {
       "digest": "sha256:3c3a4604a545cdc127456d94e421cd355bca5b528f4a9c1905b15da2eb4a4c6b",
-      "mediaType": "application/vnd.cncf.oras.artifact.manifest.v1+json",
+      "mediaType": "application/vnd.oci.reftype.artifact.manifest.v1+json",
       "artifactType": "sbom/example",
       "size": 237
     }
@@ -195,13 +205,13 @@ A paginated flow begins as:
 **template:**
 
 ```rest
-GET /v2/{repository}/_oras/artifacts/referrers?digest={digest}&n=<integer>
+GET /v2/{repository}/_reftype/artifacts/referrers?digest={digest}&n=<integer>
 ```
 
 **expanded example:**
 
 ```rest
-GET /v2/{repository}/_oras/artifacts/referrers?digest=sha256:3c3a4604a545cdc127456d94e421cd355bca5b528f4a9c1905b15da2eb4a4c6b&n=10
+GET /v2/{repository}/_reftype/artifacts/referrers?digest=sha256:3c3a4604a545cdc127456d94e421cd355bca5b528f4a9c1905b15da2eb4a4c6b&n=10
 ```
 
 The above specifies that a referrers response should be returned limiting the number of results to `n`.
@@ -209,7 +219,7 @@ The response to such a request would look as follows:
 
 ```json
 200 OK
-ORAS-Api-Version:oras/1.0
+RefType-Api-Version:reftype/1.0
 Link: <url>; rel="next"
 
 {
@@ -239,13 +249,13 @@ construct it themselves.
 For example, if the url is:
 
 ```
-http://example.com/v2/hello-world/_oras/artifacts/referrers?digest=sha256:3c3a4604a545cdc127456d94e421cd355bca5b528f4a9c1905b15da2eb4a4c6b&n=5&nextToken=abc
+http://example.com/v2/hello-world/_reftype/artifacts/referrers?digest=sha256:3c3a4604a545cdc127456d94e421cd355bca5b528f4a9c1905b15da2eb4a4c6b&n=5&nextToken=abc
 ```
 
 The value of the header would be:
 
 ```
-<http://example.com/v2/hello-world/_oras/artifacts/referrers?digest=sha256:3c3a4604a545cdc127456d94e421cd355bca5b528f4a9c1905b15da2eb4a4c6b&n=5&nextToken=abc>; rel="next"`.
+<http://example.com/v2/hello-world/_reftype/artifacts/referrers?digest=sha256:3c3a4604a545cdc127456d94e421cd355bca5b528f4a9c1905b15da2eb4a4c6b&n=5&nextToken=abc>; rel="next"`.
 ```
 
 Please see [RFC5988][rfc5988] for details.
@@ -253,9 +263,9 @@ Please see [RFC5988][rfc5988] for details.
 ### Sorting Results
 
 The `/referrers` API MUST allow for artifacts to be sorted by the date and time in which they were created, which SHOULD be included in the artifact manifest's list of `annotations`.
-The artifact's creation time MUST be the value of the `io.cncf.oras.artifact.created` annotation, as specified in the [artifact-manifest spec][artifact-manifest-spec].
+The artifact's creation time MUST be the value of the `org.oci.artifact.created` annotation, as specified in the [artifact-manifest spec][artifact-manifest-spec].
 The results of the `/referrers` API MUST list artifacts that were created more recently first.
-Artifacts that do not have the `io.cncf.oras.artifact.created` annotation MUST appear after those with creation times specified in the list of results.
+Artifacts that do not have the `org.oci.artifact.created` annotation MUST appear after those with creation times specified in the list of results.
 There is no specified ordering for artifacts that do not include the creation time in their list of `annotations`.
 
 ### Filtering Results
@@ -269,15 +279,14 @@ Request referenced artifacts by `artifactType`
 **template:**
 
 ```rest
-GET /v2/{repository}/_oras/artifacts/referrers?digest={digest}&n=10&artifactType={artifactType}
+GET /v2/{repository}/_reftype/artifacts/referrers?digest={digest}&n=10&artifactType={artifactType}
 ```
 
 **expanded example:**
 
 ```rest
-GET /v2/net-monitor/_oras/artifacts/referrers?digest=sha256:3c3a4604a545cdc127456d94e421cd355bca5b528f4a9c1905b15da2eb4a4c6b&n=10&artifactType=signature%2Fexample
+GET /v2/net-monitor/_reftype/artifacts/referrers?digest=sha256:3c3a4604a545cdc127456d94e421cd355bca5b528f4a9c1905b15da2eb4a4c6b&n=10&artifactType=signature%2Fexample
 ```
-
 
 ### Push Validation
 
@@ -293,7 +302,7 @@ Registries MAY treat the lifecycle of a reference type object, such as an SBoM o
 - [Comparing the ORAS Artifact Manifest and OCI Image Manifest][manifest-differences]
 
 [annotations-rules]:               https://github.com/opencontainers/image-spec/blob/main/annotations.md#rules
-[descriptor]:                      ./descriptor.md
+[descriptor]:                      https://github.com/oras-project/artifacts-spec/blob/main/descriptor.md
 [manifest-differences]:            https://github.com/oras-project/artifacts-spec#comparing-the-oras-artifact-manifest-and-oci-image-manifest
 [oci-artifact-authors]:            https://github.com/opencontainers/artifacts/blob/master/artifact-authors.md
 [oci-artifacts]:                   https://github.com/opencontainers/artifacts
@@ -303,4 +312,5 @@ Registries MAY treat the lifecycle of a reference type object, such as an SBoM o
 [oci-image-manifest-spec]:         https://github.com/opencontainers/image-spec/blob/master/manifest.md
 [registering-iana]:                https://github.com/opencontainers/artifacts/blob/master/artifact-authors.md#registering-unique-types-with-iana
 [rfc-3339]:                        https://tools.ietf.org/html/rfc3339#section-5.6
-[rfc5988]:                               https://datatracker.ietf.org/doc/html/rfc5988
+[rfc5988]:                         https://datatracker.ietf.org/doc/html/rfc5988
+[oras-azure]:                      https://aka.ms/acr/oras-artifacts
