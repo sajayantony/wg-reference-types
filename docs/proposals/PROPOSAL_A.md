@@ -1,5 +1,3 @@
-###### tags: `oras`
-
 # Proposal A
 
 Add a new manifest, that provides a superset of capabilities of the image manifest, with a reduced set of constraints enabling the container runtime image artifact, and new artifact types that include reference types.
