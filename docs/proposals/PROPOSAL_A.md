@@ -109,13 +109,10 @@ GET /v2/{repository}/_oci/ext/discover
 The response SHOULD contain an extension with the name of `org.oci.referrers`
 and the `url` path where the referrers can be requested.
 
-```html
+```jsonc
 200 OK
 Content-Length: <length>
 Content-Type: application/json
-```
-
-```jsonc
 {
     "extensions": [
         {
@@ -217,12 +214,10 @@ GET /v2/{repository}/_reftype/artifacts/referrers?digest=sha256:3c3a4604a545cdc1
 The above specifies that a referrers response should be returned limiting the number of results to `n`.
 The response to such a request would look as follows:
 
-```html
+```jsonc
 200 OK
 RefType-Api-Version:reftype/1.0
 Link: <url>; rel="next"
-```
-```jsonc
 {
   "referrers": [
     {
