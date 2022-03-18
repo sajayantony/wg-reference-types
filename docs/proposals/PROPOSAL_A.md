@@ -109,7 +109,7 @@ GET /v2/{repository}/_oci/ext/discover
 The response SHOULD contain an extension with the name of `org.oci.referrers`
 and the `url` path where the referrers can be requested.
 
-```http
+```jsonc
 200 OK
 Content-Length: <length>
 Content-Type: application/json
