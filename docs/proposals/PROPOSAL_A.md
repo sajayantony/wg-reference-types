@@ -77,12 +77,7 @@ By defining a new manifest, registries and clients opt-into new capabilities, wi
 
 - **`annotations`** *string-string map*
 
-    This OPTIONAL property contains arbitrary metadata for the artifact manifest.
-    This OPTIONAL property MUST use the [annotation rules][annotations-rules].
-    This map MAY contain some or all of the pre-defined keys listed below.
-
     **Pre-Defined Annotation Keys:**
-    This defines a set of keys that have been pre-defined for use by authors of the artifact.
     - `org.oci.artifact.created` date and time on which the artifact was created (string, date-time as defined by [RFC 3339][rfc-3339])
 
 ### Descriptor Properties
