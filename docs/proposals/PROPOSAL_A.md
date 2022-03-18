@@ -2,7 +2,7 @@
 
 Add a new manifest, that provides a superset of capabilities of the image manifest, with a reduced set of constraints enabling the container runtime image artifact, and new artifact types that include reference types.
 
-The medications include:
+The modifications include:
 
 - [New artifact manifest](#artifact-manifest)
 - [Descriptor (OPTIONAL) additional property](#descriptor-properties)
@@ -10,7 +10,7 @@ The medications include:
 
 ## Artifact Manifest
 
-The `artifact.manifest` provides an optional collection of `blobs`, an optional `subject` reference to the manifest of another artifact and an `artifactType` to differentiate types of artifacts (such as signatures, sboms and security scan results).
+Provides an optional `subject` reference to another manifest (runtime image), an `artifactType` to differentiate types of artifacts (signatures, sboms, security scan results) and renames `layers` to optional `blobs`.
 
 ## Links
 
@@ -96,7 +96,7 @@ Registries and clients work with descriptors as the means to establish discovery
 
 ## Registry HTTP API
 
-The `referrers` extension API is provided to discover these artifacts.
+The `referrers` [extension API](https://github.com/opencontainers/distribution-spec/blob/main/extensions/README.md) is provided to discover these artifacts.
 An artifact client would parse the returned [artifact descriptors][descriptor], determining which  artifact manifest they will pull and process.
 
 The `referrers` API returns all artifacts that have a `subject` of the given manifest digest.
@@ -126,7 +126,7 @@ Content-Type: application/json
 
 ### API Path
 
-The `referrers` api are provided on the [distribution-spec][oci-distribution-spec] paths as described below.
+The `referrers` api is provided on the [distribution-spec][oci-distribution-spec] paths as described below.
 The path of the referrers api provides consistent namespace/repository paths, enabling registry operators to implement consistent auth access, using existing tokens for content.
 
 **template:**
@@ -294,7 +294,6 @@ Registries MAY treat the lifecycle of a reference type object, such as an SBoM o
 
 ## Further Reading
 
-- [Usage and Scenarios](https://github.com/oras-project/artifacts-spec/blob/main/scenarios.md)
 - [Comparing the ORAS Artifact Manifest and OCI Image Manifest][manifest-differences]
 
 [annotations-rules]:               https://github.com/opencontainers/image-spec/blob/main/annotations.md#rules
